@@ -44,12 +44,13 @@ struct ReadyToScanView: View {
 
 struct ScanningView: View {
     let progress: Double
+    let currentCategory: String
 
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
 
-            ProgressView(value: progress)
+            ProgressView(value: max(progress, 0.02))
                 .progressViewStyle(.linear)
                 .tint(
                     LinearGradient(
@@ -64,9 +65,14 @@ struct ScanningView: View {
                 Text("Scanning…")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
+                if !currentCategory.isEmpty {
+                    Text("Scanning \(currentCategory)")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color(hex: "#99A1AF"))
+                }
                 Text("\(Int(progress * 100))% complete")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color(hex: "#99A1AF"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(hex: "#99A1AF").opacity(0.6))
             }
 
             Spacer()

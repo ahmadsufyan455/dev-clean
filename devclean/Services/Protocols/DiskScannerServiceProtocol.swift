@@ -21,6 +21,14 @@ protocol DiskScannerServiceProtocol: AnyObject, Sendable {
         progressHandler: (@Sendable (Double) -> Void)?
     ) async throws -> [DiskItem]
 
+    /// Scans only the immediate (top-level) children of each URL, computing the
+    /// total recursive size for each child. Produces one DiskItem per child entry,
+    /// making results meaningful at the project/module level rather than per-file.
+    func scanTopLevel(
+        urls: [URL],
+        progressHandler: (@Sendable (Double) -> Void)?
+    ) async throws -> [DiskItem]
+
     /// Returns a fast size estimate in bytes without building a full DiskItem graph.
     /// Used to show approximate totals while a full scan runs in the background.
     func estimatedSize(at url: URL) async throws -> Int64

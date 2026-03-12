@@ -39,6 +39,46 @@ final class DiskScannerService: DiskScannerServiceProtocol {
         return allItems
     }
 
+    func scanTopLevel(
+        urls: [URL],
+        progressHandler: (@Sendable (Double) -> Void)?
+    ) async throws -> [DiskItem] {
+        try await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return [] }
+
+            // Collect all top-level children across all target URLs
+            var children: [URL] = []
+            for url in urls {
+                guard self.fileManager.fileExists(atPath: url.path) else { continue }
+                let contents = (try? self.fileManager.contentsOfDirectory(
+                    at: url,
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                    options: [.skipsHiddenFiles]
+                )) ?? []
+                children.append(contentsOf: contents)
+            }
+
+            var items: [DiskItem] = []
+            for (index, child) in children.enumerated() {
+                progressHandler?(Double(index + 1) / Double(max(children.count, 1)))
+
+                let isDir = (try? child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                let size = self.directorySize(url: child)
+                let modified = (try? child.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+
+                items.append(DiskItem(
+                    id: child,
+                    url: child,
+                    sizeInBytes: size,
+                    lastModified: modified,
+                    type: isDir ? .directory : .file
+                ))
+            }
+
+            return items.sorted { $0.sizeInBytes > $1.sizeInBytes }
+        }.value
+    }
+
     func estimatedSize(at url: URL) async throws -> Int64 {
         try await Task.detached(priority: .utility) { [weak self] in
             guard let self else { return 0 }

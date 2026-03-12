@@ -24,7 +24,7 @@ struct MainWindowView: View {
                     case .history:
                         PlaceholderView(title: "History", icon: "clock")
                     case .settings:
-                        PlaceholderView(title: "Settings", icon: "gearshape")
+                        SettingsView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

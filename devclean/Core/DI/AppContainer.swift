@@ -14,12 +14,16 @@ final class AppContainer {
     let diskScanner: DiskScannerServiceProtocol = DiskScannerService()
     let cleaningService: CleaningServiceProtocol = CleaningService()
     let appDetection: AppDetectionService = AppDetectionService()
+    let storageInfo: StorageInfoService = StorageInfoService()
 
     // MARK: - ViewModels
 
     lazy var dashboardViewModel: DashboardViewModel = DashboardViewModel(
         scanner: diskScanner,
         cleaner: cleaningService,
-        appDetection: appDetection
+        appDetection: appDetection,
+        storageInfo: storageInfo
     )
+
+    lazy var settingsViewModel: SettingsViewModel = SettingsViewModel()
 }

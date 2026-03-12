@@ -27,7 +27,7 @@ struct SystemStorageCard: View {
                     Text("System Storage")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
-                    Text("\(ByteFormatter.string(fromBytes: totalBytes)) SSD")
+                    Text(totalBytes > 0 ? "\(ByteFormatter.string(fromBytes: totalBytes)) SSD" : "Loading…")
                         .font(.system(size: 14))
                         .foregroundStyle(Color(hex: "#99A1AF"))
                 }

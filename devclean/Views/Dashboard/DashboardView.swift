@@ -6,10 +6,6 @@ import SwiftUI
 struct DashboardView: View {
     @Environment(DashboardViewModel.self) private var viewModel
 
-    // Hardcoded storage info — replace with real IOKit query later
-    private let totalStorageBytes: Int64 = 512 * 1_073_741_824   // 512 GB
-    private let usedStorageBytes: Int64  = 387 * 1_073_741_824   // 387 GB
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
@@ -28,8 +24,8 @@ struct DashboardView: View {
                 // Storage overview cards
                 HStack(spacing: 24) {
                     SystemStorageCard(
-                        totalBytes: totalStorageBytes,
-                        usedBytes: usedStorageBytes
+                        totalBytes: viewModel.volumeInfo.totalBytes,
+                        usedBytes: viewModel.volumeInfo.usedBytes
                     )
                     .frame(height: 190)
 
@@ -97,13 +93,18 @@ struct DashboardView: View {
         switch viewModel.state {
         case .idle:
             ReadyToScanView()
-        case .scanning(let progress):
-            ScanningView(progress: progress)
+        case .scanning(let progress, let category):
+            ScanningView(progress: progress, currentCategory: category)
+        case .scanned:
+            ScanResultsView()
         case .cleaning(let progress):
             CleaningView(progress: progress)
         case .complete(let freed):
-            CleanCompleteView(totalFreed: freed) {
-                viewModel.resetToIdle()
+            VStack(alignment: .leading, spacing: 16) {
+                ScanResultsView()
+                CleanCompleteView(totalFreed: freed) {
+                    viewModel.resetToIdle()
+                }
             }
         case .error(let message):
             ErrorPanelView(message: message) {
