@@ -5,20 +5,10 @@
 //  Created by Ahmad Sufyan on 12/03/26.
 //
 
+// ContentView.swift
+// devclean — entry point delegated to MainWindowView
+
 import SwiftUI
 
-struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+// This file is intentionally empty. The app entry point is MainWindowView.
 
-#Preview {
-    ContentView()
-}
