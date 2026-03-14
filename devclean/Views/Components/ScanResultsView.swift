@@ -90,6 +90,8 @@ private struct ToolCategoryCard: View {
     let tool: DeveloperTool
     let categories: [CleanableCategory]
 
+    @State private var isExpanded: Bool = true
+
     private var toolTotalSize: Int64 { viewModel.totalSize(for: tool) }
     private var isEnabled: Bool { viewModel.isToolEnabled(tool) }
 
@@ -121,27 +123,26 @@ private struct ToolCategoryCard: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            HStack(alignment: .center, spacing: 16) {
 
-            // Tool icon badge
-            ZStack {
-                toolColor.opacity(0.15)
-                Image(systemName: toolIcon)
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(toolColor)
-            }
-            .frame(width: 48, height: 48)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+                // Tool icon badge
+                ZStack {
+                    toolColor.opacity(0.15)
+                    Image(systemName: toolIcon)
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(toolColor)
+                }
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            // Content
-            VStack(alignment: .leading, spacing: 8) {
                 // Name + size badge
-                HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(toolDisplayName)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
 
-                    // Size badge
                     Text(ByteFormatter.string(fromBytes: toolTotalSize))
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(toolTotalSize > 0 ? toolColor : Color(hex: "#99A1AF"))
@@ -151,36 +152,46 @@ private struct ToolCategoryCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
-                // Target paths list
-                VStack(alignment: .leading, spacing: 4) {
+                Spacer()
+
+                // Select-all toggle
+                Toggle("", isOn: Binding(
+                    get: { isEnabled },
+                    set: { viewModel.setToolEnabled(tool, enabled: $0) }
+                ))
+                .toggleStyle(.switch)
+                .tint(toolColor)
+                .labelsHidden()
+                .disabled(toolTotalSize == 0)
+
+                // Expand/collapse chevron
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color(hex: "#99A1AF"))
+                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                        .animation(.easeInOut(duration: 0.2), value: isExpanded)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(20)
+
+            // Expanded: per-category sections with item checklists
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    Divider()
+                        .background(Color(hex: "#3A3A3A"))
+
                     ForEach(categories, id: \.id) { category in
-                        ForEach(category.targetPaths, id: \.self) { path in
-                            HStack(spacing: 6) {
-                                Image(systemName: "folder")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(Color(hex: "#99A1AF"))
-                                Text(abbreviatedPath(path))
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color(hex: "#99A1AF"))
-                            }
-                        }
+                        CategorySection(category: category, toolColor: toolColor)
                     }
                 }
             }
-
-            Spacer()
-
-            // Toggle
-            Toggle("", isOn: Binding(
-                get: { isEnabled },
-                set: { viewModel.setToolEnabled(tool, enabled: $0) }
-            ))
-            .toggleStyle(.switch)
-            .tint(toolColor)
-            .labelsHidden()
-            .disabled(toolTotalSize == 0)
         }
-        .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(hex: "#252525"))
         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -189,13 +200,182 @@ private struct ToolCategoryCard: View {
                 .stroke(Color(hex: "#3A3A3A"), lineWidth: 1)
         )
     }
+}
 
-    /// Converts "~/Library/Developer/Xcode/DerivedData" → "~/DerivedData"
-    /// keeping it short for display.
-    private func abbreviatedPath(_ path: String) -> String {
-        let components = path.components(separatedBy: "/")
-        guard components.count > 2 else { return path }
-        return "~/" + components.suffix(1).joined(separator: "/")
+// MARK: - Category section (within a tool card)
+
+private struct CategorySection: View {
+    @Environment(DashboardViewModel.self) private var viewModel
+    let category: CleanableCategory
+    let toolColor: Color
+
+    private var isCategorySelected: Bool {
+        !category.items.isEmpty && category.items.allSatisfy(\.isSelected)
+    }
+
+    private var isCategoryIndeterminate: Bool {
+        !isCategorySelected && category.items.contains(where: \.isSelected)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Category header row
+            HStack(spacing: 10) {
+                // Category-level checkbox
+                CheckboxButton(
+                    isChecked: isCategorySelected,
+                    isIndeterminate: isCategoryIndeterminate,
+                    isDisabled: category.items.isEmpty,
+                    color: toolColor
+                ) {
+                    viewModel.setCategoryEnabled(category, enabled: !isCategorySelected)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(category.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(category.items.isEmpty ? Color(hex: "#555555") : .white)
+
+                    Text(category.description)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color(hex: "#6B7280"))
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Text(ByteFormatter.string(fromBytes: category.totalSizeInBytes))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(category.totalSizeInBytes > 0 ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+
+            // Item rows
+            if !category.items.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(category.items.enumerated()), id: \.element.id) { index, item in
+                        ItemRow(item: item, toolColor: toolColor) { selected in
+                            viewModel.setItemSelected(category: category, item: item, selected: selected)
+                        }
+
+                        if index < category.items.count - 1 {
+                            Divider()
+                                .background(Color(hex: "#2F2F2F"))
+                                .padding(.leading, 56)
+                        }
+                    }
+                }
+                .background(Color(hex: "#1E1E1E"))
+            } else {
+                // Empty state for this category
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(hex: "#444444"))
+                    Text("Nothing to clean")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(hex: "#555555"))
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+                .padding(.leading, 28)
+            }
+
+            Divider()
+                .background(Color(hex: "#3A3A3A"))
+        }
+    }
+}
+
+// MARK: - Individual item row
+
+private struct ItemRow: View {
+    let item: DiskItem
+    let toolColor: Color
+    let onToggle: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Indent
+            Color.clear.frame(width: 20)
+
+            CheckboxButton(
+                isChecked: item.isSelected,
+                isIndeterminate: false,
+                isDisabled: false,
+                color: toolColor,
+                action: { onToggle(!item.isSelected) }
+            )
+
+            Image(systemName: item.type == .directory ? "folder.fill" : "doc.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(Color(hex: "#6B7280"))
+
+            Text(item.name)
+                .font(.system(size: 12))
+                .foregroundStyle(item.isSelected ? Color(hex: "#D1D5DC") : Color(hex: "#6B7280"))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer()
+
+            Text(ByteFormatter.string(fromBytes: item.sizeInBytes))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(item.isSelected ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .onTapGesture { onToggle(!item.isSelected) }
+    }
+}
+
+// MARK: - Checkbox button
+
+private struct CheckboxButton: View {
+    let isChecked: Bool
+    let isIndeterminate: Bool
+    let isDisabled: Bool
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(checkFill)
+                    .frame(width: 18, height: 18)
+
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(checkBorder, lineWidth: 1.5)
+                    .frame(width: 18, height: 18)
+
+                if isIndeterminate {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(.white)
+                        .frame(width: 8, height: 2)
+                } else if isChecked {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+    }
+
+    private var checkFill: Color {
+        if isDisabled { return Color(hex: "#2A2A2A") }
+        if isChecked || isIndeterminate { return color }
+        return Color(hex: "#2A2A2A")
+    }
+
+    private var checkBorder: Color {
+        if isDisabled { return Color(hex: "#3A3A3A") }
+        if isChecked || isIndeterminate { return color }
+        return Color(hex: "#555555")
     }
 }
 

@@ -117,6 +117,22 @@ final class DashboardViewModel {
         }
     }
 
+    /// Select or deselect all items within a single category.
+    func setCategoryEnabled(_ category: CleanableCategory, enabled: Bool) {
+        guard let catIndex = categories.firstIndex(where: { $0.id == category.id }) else { return }
+        for itemIndex in categories[catIndex].items.indices {
+            categories[catIndex].items[itemIndex].isSelected = enabled
+        }
+    }
+
+    /// Toggle a single item's selection state.
+    func setItemSelected(category: CleanableCategory, item: DiskItem, selected: Bool) {
+        guard let catIndex = categories.firstIndex(where: { $0.id == category.id }),
+              let itemIndex = categories[catIndex].items.firstIndex(where: { $0.id == item.id })
+        else { return }
+        categories[catIndex].items[itemIndex].isSelected = selected
+    }
+
     var isCleaning: Bool {
         if case .cleaning = state { return true }
         return false
