@@ -21,18 +21,23 @@ struct CleanableCategory: Identifiable, Sendable {
     /// The root paths this category scans. Resolved at runtime via PathHelper.
     let targetPaths: [String]
     var items: [DiskItem]
+    /// Whether this category's toggle is on. When off, nothing is cleaned even if items are checked.
+    var isEnabled: Bool = true
 
     /// Total size in bytes across all items.
     var totalSizeInBytes: Int64 {
         items.reduce(0) { $0 + $1.sizeInBytes }
     }
 
-    /// Total size in bytes of currently selected items.
+    /// Size that will actually be freed: checked items only when category is enabled.
     var selectedSizeInBytes: Int64 {
-        items.filter(\.isSelected).reduce(0) { $0 + $1.sizeInBytes }
+        guard isEnabled else { return 0 }
+        return items.filter(\.isSelected).reduce(0) { $0 + $1.sizeInBytes }
     }
 
+    /// Items that will actually be cleaned: checked items only when category is enabled.
     var selectedItems: [DiskItem] {
-        items.filter(\.isSelected)
+        guard isEnabled else { return [] }
+        return items.filter(\.isSelected)
     }
 }

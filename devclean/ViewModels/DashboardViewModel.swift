@@ -102,26 +102,16 @@ final class DashboardViewModel {
         categories.filter { $0.tool == tool }.reduce(0) { $0 + $1.totalSizeInBytes }
     }
 
-    /// Whether all items in a tool group are selected.
+    /// Whether all categories in a tool group have their toggle on.
     func isToolEnabled(_ tool: DeveloperTool) -> Bool {
-        let items = categories.filter { $0.tool == tool }.flatMap(\.items)
-        return !items.isEmpty && items.allSatisfy(\.isSelected)
+        let cats = categories.filter { $0.tool == tool }
+        return !cats.isEmpty && cats.allSatisfy(\.isEnabled)
     }
 
-    /// Select or deselect all items for a tool.
+    /// Toggle all categories for a tool on or off (independent of item checkboxes).
     func setToolEnabled(_ tool: DeveloperTool, enabled: Bool) {
         for catIndex in categories.indices where categories[catIndex].tool == tool {
-            for itemIndex in categories[catIndex].items.indices {
-                categories[catIndex].items[itemIndex].isSelected = enabled
-            }
-        }
-    }
-
-    /// Select or deselect all items within a single category.
-    func setCategoryEnabled(_ category: CleanableCategory, enabled: Bool) {
-        guard let catIndex = categories.firstIndex(where: { $0.id == category.id }) else { return }
-        for itemIndex in categories[catIndex].items.indices {
-            categories[catIndex].items[itemIndex].isSelected = enabled
+            categories[catIndex].isEnabled = enabled
         }
     }
 

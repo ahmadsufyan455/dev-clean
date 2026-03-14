@@ -187,7 +187,7 @@ private struct ToolCategoryCard: View {
                         .background(Color(hex: "#3A3A3A"))
 
                     ForEach(categories, id: \.id) { category in
-                        CategorySection(category: category, toolColor: toolColor)
+                        CategorySection(category: category, toolColor: toolColor, toolEnabled: isEnabled)
                     }
                 }
             }
@@ -208,33 +208,36 @@ private struct CategorySection: View {
     @Environment(DashboardViewModel.self) private var viewModel
     let category: CleanableCategory
     let toolColor: Color
+    let toolEnabled: Bool
 
-    private var isCategorySelected: Bool {
+    private var allChecked: Bool {
         !category.items.isEmpty && category.items.allSatisfy(\.isSelected)
     }
-
-    private var isCategoryIndeterminate: Bool {
-        !isCategorySelected && category.items.contains(where: \.isSelected)
+    private var someChecked: Bool {
+        !allChecked && category.items.contains(where: \.isSelected)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Category header row
             HStack(spacing: 10) {
-                // Category-level checkbox
+                // Checkbox controls item selection (select-all / deselect-all)
                 CheckboxButton(
-                    isChecked: isCategorySelected,
-                    isIndeterminate: isCategoryIndeterminate,
-                    isDisabled: category.items.isEmpty,
+                    isChecked: allChecked,
+                    isIndeterminate: someChecked,
+                    isDisabled: category.items.isEmpty || !toolEnabled,
                     color: toolColor
                 ) {
-                    viewModel.setCategoryEnabled(category, enabled: !isCategorySelected)
+                    let newState = !allChecked
+                    for item in category.items {
+                        viewModel.setItemSelected(category: category, item: item, selected: newState)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(category.name)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(category.items.isEmpty ? Color(hex: "#555555") : .white)
+                        .foregroundStyle(category.items.isEmpty || !toolEnabled ? Color(hex: "#555555") : .white)
 
                     Text(category.description)
                         .font(.system(size: 11))
@@ -246,7 +249,7 @@ private struct CategorySection: View {
 
                 Text(ByteFormatter.string(fromBytes: category.totalSizeInBytes))
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(category.totalSizeInBytes > 0 ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
+                    .foregroundStyle(toolEnabled && category.totalSizeInBytes > 0 ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -255,7 +258,7 @@ private struct CategorySection: View {
             if !category.items.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(category.items.enumerated()), id: \.element.id) { index, item in
-                        ItemRow(item: item, toolColor: toolColor) { selected in
+                        ItemRow(item: item, toolColor: toolColor, toolEnabled: toolEnabled) { selected in
                             viewModel.setItemSelected(category: category, item: item, selected: selected)
                         }
 
@@ -268,7 +271,6 @@ private struct CategorySection: View {
                 }
                 .background(Color(hex: "#1E1E1E"))
             } else {
-                // Empty state for this category
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle")
                         .font(.system(size: 12))
@@ -293,28 +295,30 @@ private struct CategorySection: View {
 private struct ItemRow: View {
     let item: DiskItem
     let toolColor: Color
+    let toolEnabled: Bool
     let onToggle: (Bool) -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            // Indent
             Color.clear.frame(width: 20)
 
             CheckboxButton(
                 isChecked: item.isSelected,
                 isIndeterminate: false,
-                isDisabled: false,
+                isDisabled: !toolEnabled,
                 color: toolColor,
                 action: { onToggle(!item.isSelected) }
             )
 
             Image(systemName: item.type == .directory ? "folder.fill" : "doc.fill")
                 .font(.system(size: 12))
-                .foregroundStyle(Color(hex: "#6B7280"))
+                .foregroundStyle(toolEnabled ? Color(hex: "#6B7280") : Color(hex: "#3A3A3A"))
 
             Text(item.name)
                 .font(.system(size: 12))
-                .foregroundStyle(item.isSelected ? Color(hex: "#D1D5DC") : Color(hex: "#6B7280"))
+                .foregroundStyle(toolEnabled
+                    ? (item.isSelected ? Color(hex: "#D1D5DC") : Color(hex: "#6B7280"))
+                    : Color(hex: "#444444"))
                 .lineLimit(1)
                 .truncationMode(.middle)
 
@@ -322,12 +326,14 @@ private struct ItemRow: View {
 
             Text(ByteFormatter.string(fromBytes: item.sizeInBytes))
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(item.isSelected ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
+                .foregroundStyle(toolEnabled
+                    ? (item.isSelected ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
+                    : Color(hex: "#333333"))
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
         .contentShape(Rectangle())
-        .onTapGesture { onToggle(!item.isSelected) }
+        .onTapGesture { if toolEnabled { onToggle(!item.isSelected) } }
     }
 }
 
