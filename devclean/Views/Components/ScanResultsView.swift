@@ -91,6 +91,7 @@ private struct ToolCategoryCard: View {
     let categories: [CleanableCategory]
 
     @State private var isExpanded: Bool = true
+    @State private var categoryExpanded: [String: Bool] = [:]
 
     private var toolTotalSize: Int64 { viewModel.totalSize(for: tool) }
     private var isEnabled: Bool { viewModel.isToolEnabled(tool) }
@@ -186,7 +187,15 @@ private struct ToolCategoryCard: View {
                         .background(Color(hex: "#3A3A3A"))
 
                     ForEach(categories, id: \.id) { category in
-                        CategorySection(category: category, toolColor: toolColor, toolEnabled: isEnabled)
+                        CategorySection(
+                            category: category,
+                            toolColor: toolColor,
+                            toolEnabled: isEnabled,
+                            isExpanded: Binding(
+                                get: { categoryExpanded[category.id] ?? false },
+                                set: { categoryExpanded[category.id] = $0 }
+                            )
+                        )
                     }
                 }
             }
@@ -208,6 +217,7 @@ private struct CategorySection: View {
     let category: CleanableCategory
     let toolColor: Color
     let toolEnabled: Bool
+    @Binding var isExpanded: Bool
 
     private var allChecked: Bool {
         !category.items.isEmpty && category.items.allSatisfy(\.isSelected)
@@ -218,7 +228,7 @@ private struct CategorySection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Category header row
+            // Category header row — entire row is tappable to expand/collapse
             HStack(spacing: 10) {
                 // Checkbox controls item selection (select-all / deselect-all)
                 CheckboxButton(
@@ -249,38 +259,53 @@ private struct CategorySection: View {
                 Text(ByteFormatter.string(fromBytes: category.totalSizeInBytes))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(toolEnabled && category.totalSizeInBytes > 0 ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
+
+                // Chevron — visual indicator only, row tap handles expand
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#6B7280"))
+                    .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                    .animation(.easeInOut(duration: 0.2), value: isExpanded)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            }
 
-            // Item rows
-            if !category.items.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(category.items.enumerated()), id: \.element.id) { index, item in
-                        ItemRow(item: item, toolColor: toolColor, toolEnabled: toolEnabled) { selected in
-                            viewModel.setItemSelected(category: category, item: item, selected: selected)
-                        }
+            // Item rows (shown when expanded)
+            if isExpanded {
+                if !category.items.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(category.items.enumerated()), id: \.element.id) { index, item in
+                            ItemRow(item: item, toolColor: toolColor, toolEnabled: toolEnabled) { selected in
+                                viewModel.setItemSelected(category: category, item: item, selected: selected)
+                            }
 
-                        if index < category.items.count - 1 {
-                            Divider()
-                                .background(Color(hex: "#2F2F2F"))
-                                .padding(.leading, 56)
+                            if index < category.items.count - 1 {
+                                Divider()
+                                    .background(Color(hex: "#2F2F2F"))
+                                    .padding(.leading, 56)
+                            }
                         }
                     }
+                    .background(Color(hex: "#1E1E1E"))
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(hex: "#444444"))
+                        Text("Nothing to clean")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(hex: "#555555"))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+                    .padding(.leading, 28)
                 }
-                .background(Color(hex: "#1E1E1E"))
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "#444444"))
-                    Text("Nothing to clean")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "#555555"))
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
-                .padding(.leading, 28)
             }
 
             Divider()
