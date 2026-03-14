@@ -5,6 +5,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @Environment(DashboardViewModel.self) private var viewModel
+    @State private var permanentDelete: Bool = false
 
     var body: some View {
         ScrollView {
@@ -56,25 +57,59 @@ struct DashboardView: View {
                     .buttonStyle(.plain)
                     .disabled(viewModel.isScanning || viewModel.isCleaning)
 
-                    // Clean button
-                    Button {
-                        Task { await viewModel.cleanSelected() }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 16))
-                            Text("Clean \(viewModel.totalReclaimableDisplay)")
-                                .font(.system(size: 16, weight: .medium))
+                    // Split clean button: primary action + mode picker
+                    let cleanDisabled = viewModel.totalReclaimableBytes == 0 || viewModel.isCleaning || viewModel.isScanning
+                    HStack(spacing: 0) {
+                        // Primary action
+                        Button {
+                            Task { await viewModel.cleanSelected(permanent: permanentDelete) }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: permanentDelete ? "trash.slash" : "trash")
+                                    .font(.system(size: 16))
+                                Text(permanentDelete ? "Delete \(viewModel.totalReclaimableDisplay)" : "Move to Trash \(viewModel.totalReclaimableDisplay)")
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 20)
+                            .frame(height: 48)
                         }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 24)
-                        .frame(height: 48)
-                        .background(Color(hex: "#155DFC"))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .buttonStyle(.plain)
+                        .disabled(cleanDisabled)
+
+                        // Divider
+                        Rectangle()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 1, height: 28)
+
+                        // Mode picker chevron
+                        Menu {
+                            Button {
+                                permanentDelete = false
+                            } label: {
+                                Label("Move to Trash", systemImage: permanentDelete ? "" : "checkmark")
+                            }
+                            Button(role: .destructive) {
+                                permanentDelete = true
+                            } label: {
+                                Label("Delete Permanently", systemImage: permanentDelete ? "checkmark" : "")
+                            }
+                        } label: {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(Rectangle())
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .frame(width: 44, height: 48)
+                        .contentShape(Rectangle())
+                        .disabled(cleanDisabled)
                     }
-                    .buttonStyle(.plain)
-                    .opacity(viewModel.totalReclaimableBytes > 0 && !viewModel.isCleaning ? 1 : 0.5)
-                    .disabled(viewModel.totalReclaimableBytes == 0 || viewModel.isCleaning || viewModel.isScanning)
+                    .background(permanentDelete ? Color(hex: "#C0392B") : Color(hex: "#155DFC"))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .opacity(cleanDisabled ? 0.5 : 1)
                 }
 
                 // State panel
