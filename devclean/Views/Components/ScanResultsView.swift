@@ -164,21 +164,20 @@ private struct ToolCategoryCard: View {
                 .labelsHidden()
                 .disabled(toolTotalSize == 0)
 
-                // Expand/collapse chevron
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isExpanded.toggle()
-                    }
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color(hex: "#99A1AF"))
-                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
-                        .animation(.easeInOut(duration: 0.2), value: isExpanded)
-                }
-                .buttonStyle(.plain)
+                // Expand/collapse chevron (visual indicator only — whole row is tappable)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#99A1AF"))
+                    .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                    .animation(.easeInOut(duration: 0.2), value: isExpanded)
             }
             .padding(20)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            }
 
             // Expanded: per-category sections with item checklists
             if isExpanded {
