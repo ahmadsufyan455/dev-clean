@@ -71,7 +71,8 @@ final class DiskScannerService: DiskScannerServiceProtocol {
                     url: child,
                     sizeInBytes: size,
                     lastModified: modified,
-                    type: isDir ? .directory : .file
+                    type: isDir ? .directory : .file,
+                    displayName: self.simulatorName(at: child)
                 ))
             }
 
@@ -146,6 +147,16 @@ final class DiskScannerService: DiskScannerServiceProtocol {
             lastModified: modified,
             type: isDirectory ? .directory : .file
         )
+    }
+
+    /// Reads the simulator name from device.plist if present, otherwise returns nil.
+    private func simulatorName(at url: URL) -> String? {
+        let plist = url.appendingPathComponent("device.plist")
+        guard let data = try? Data(contentsOf: plist),
+              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              let name = dict["name"] as? String
+        else { return nil }
+        return name
     }
 
     private func directorySize(url: URL) -> Int64 {

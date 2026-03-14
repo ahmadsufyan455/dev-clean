@@ -17,6 +17,8 @@ struct DiskItem: Identifiable, Hashable, Sendable {
     let lastModified: Date
     let type: ItemType
     var isSelected: Bool = true
+    /// Human-readable override (e.g. simulator name from device.plist). Falls back to the last path component.
+    var displayName: String?
 
-    var name: String { url.lastPathComponent }
+    var name: String { displayName ?? url.lastPathComponent }
 }
