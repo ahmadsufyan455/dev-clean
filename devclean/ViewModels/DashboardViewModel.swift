@@ -133,33 +133,6 @@ final class DashboardViewModel {
         categories[catIndex].items[itemIndex].isSelected = selected
     }
 
-    /// Expand an item to show its immediate children, loading them if not yet fetched.
-    func expandItem(_ item: DiskItem, in category: CleanableCategory) async {
-        guard let catIndex = categories.firstIndex(where: { $0.id == category.id }),
-              let itemIndex = categories[catIndex].items.firstIndex(where: { $0.id == item.id }),
-              item.type == .directory
-        else { return }
-
-        // Load children if not yet fetched
-        if categories[catIndex].items[itemIndex].children.isEmpty {
-            do {
-                let children = try await scanner.scanChildren(of: item.url)
-                categories[catIndex].items[itemIndex].children = children
-            } catch {
-                // Silently ignore — item will show as empty when expanded
-            }
-        }
-        categories[catIndex].items[itemIndex].isExpanded = true
-    }
-
-    /// Collapse an expanded item.
-    func collapseItem(_ item: DiskItem, in category: CleanableCategory) {
-        guard let catIndex = categories.firstIndex(where: { $0.id == category.id }),
-              let itemIndex = categories[catIndex].items.firstIndex(where: { $0.id == item.id })
-        else { return }
-        categories[catIndex].items[itemIndex].isExpanded = false
-    }
-
     var isCleaning: Bool {
         if case .cleaning = state { return true }
         return false
