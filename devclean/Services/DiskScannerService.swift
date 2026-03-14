@@ -79,6 +79,34 @@ final class DiskScannerService: DiskScannerServiceProtocol {
         }.value
     }
 
+    func scanChildren(of url: URL) async throws -> [DiskItem] {
+        try await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return [] }
+            guard self.fileManager.fileExists(atPath: url.path) else { return [] }
+
+            let contents = (try? self.fileManager.contentsOfDirectory(
+                at: url,
+                includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
+
+            var items: [DiskItem] = []
+            for child in contents {
+                let isDir = (try? child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                let size = self.directorySize(url: child)
+                let modified = (try? child.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+                items.append(DiskItem(
+                    id: child,
+                    url: child,
+                    sizeInBytes: size,
+                    lastModified: modified,
+                    type: isDir ? .directory : .file
+                ))
+            }
+            return items.sorted { $0.sizeInBytes > $1.sizeInBytes }
+        }.value
+    }
+
     func estimatedSize(at url: URL) async throws -> Int64 {
         try await Task.detached(priority: .utility) { [weak self] in
             guard let self else { return 0 }

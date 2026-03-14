@@ -29,6 +29,9 @@ protocol DiskScannerServiceProtocol: AnyObject, Sendable {
         progressHandler: (@Sendable (Double) -> Void)?
     ) async throws -> [DiskItem]
 
+    /// Scans the immediate children of a single item URL (used for lazy expand).
+    func scanChildren(of url: URL) async throws -> [DiskItem]
+
     /// Returns a fast size estimate in bytes without building a full DiskItem graph.
     /// Used to show approximate totals while a full scan runs in the background.
     func estimatedSize(at url: URL) async throws -> Int64

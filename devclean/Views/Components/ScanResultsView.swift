@@ -255,7 +255,11 @@ private struct CategorySection: View {
             if !category.items.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(category.items.enumerated()), id: \.element.id) { index, item in
-                        ItemRow(item: item, toolColor: toolColor) { selected in
+                        ItemRow(
+                            item: item,
+                            category: category,
+                            toolColor: toolColor
+                        ) { selected in
                             viewModel.setItemSelected(category: category, item: item, selected: selected)
                         }
 
@@ -288,46 +292,125 @@ private struct CategorySection: View {
     }
 }
 
-// MARK: - Individual item row
+// MARK: - Individual item row (expandable, flat children)
 
 private struct ItemRow: View {
+    @Environment(DashboardViewModel.self) private var viewModel
     let item: DiskItem
+    let category: CleanableCategory
     let toolColor: Color
     let onToggle: (Bool) -> Void
 
+    private var isDirectory: Bool { item.type == .directory }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Parent row
+            HStack(spacing: 10) {
+                Color.clear.frame(width: 20)
+
+                // Chevron — only for directories
+                if isDirectory {
+                    Button {
+                        if item.isExpanded {
+                            viewModel.collapseItem(item, in: category)
+                        } else {
+                            Task { await viewModel.expandItem(item, in: category) }
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color(hex: "#6B7280"))
+                            .rotationEffect(.degrees(item.isExpanded ? 90 : 0))
+                            .animation(.easeInOut(duration: 0.18), value: item.isExpanded)
+                            .frame(width: 12)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Color.clear.frame(width: 12)
+                }
+
+                CheckboxButton(
+                    isChecked: item.isSelected,
+                    isIndeterminate: false,
+                    isDisabled: false,
+                    color: toolColor,
+                    action: { onToggle(!item.isSelected) }
+                )
+
+                Image(systemName: isDirectory ? "folder.fill" : "doc.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(isDirectory ? toolColor.opacity(0.7) : Color(hex: "#6B7280"))
+
+                Text(item.name)
+                    .font(.system(size: 12))
+                    .foregroundStyle(item.isSelected ? Color(hex: "#D1D5DC") : Color(hex: "#6B7280"))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer()
+
+                Text(ByteFormatter.string(fromBytes: item.sizeInBytes))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(item.isSelected ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .onTapGesture { onToggle(!item.isSelected) }
+
+            // Flat children — no further expand
+            if item.isExpanded && isDirectory {
+                if item.children.isEmpty {
+                    HStack(spacing: 6) {
+                        Color.clear.frame(width: 72)
+                        Text("Empty folder")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color(hex: "#555555"))
+                    }
+                    .padding(.vertical, 6)
+                } else {
+                    ForEach(Array(item.children.enumerated()), id: \.element.id) { index, child in
+                        Divider()
+                            .background(Color(hex: "#2A2A2A"))
+                            .padding(.leading, 72)
+
+                        ChildRow(child: child, toolColor: toolColor)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Child row (flat, no expand)
+
+private struct ChildRow: View {
+    let child: DiskItem
+    let toolColor: Color
+
     var body: some View {
         HStack(spacing: 10) {
-            // Indent
-            Color.clear.frame(width: 20)
+            Color.clear.frame(width: 52)
 
-            CheckboxButton(
-                isChecked: item.isSelected,
-                isIndeterminate: false,
-                isDisabled: false,
-                color: toolColor,
-                action: { onToggle(!item.isSelected) }
-            )
+            Image(systemName: child.type == .directory ? "folder" : "doc")
+                .font(.system(size: 11))
+                .foregroundStyle(Color(hex: "#555555"))
 
-            Image(systemName: item.type == .directory ? "folder.fill" : "doc.fill")
-                .font(.system(size: 12))
+            Text(child.name)
+                .font(.system(size: 11))
                 .foregroundStyle(Color(hex: "#6B7280"))
-
-            Text(item.name)
-                .font(.system(size: 12))
-                .foregroundStyle(item.isSelected ? Color(hex: "#D1D5DC") : Color(hex: "#6B7280"))
                 .lineLimit(1)
                 .truncationMode(.middle)
 
             Spacer()
 
-            Text(ByteFormatter.string(fromBytes: item.sizeInBytes))
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(item.isSelected ? Color(hex: "#99A1AF") : Color(hex: "#444444"))
+            Text(ByteFormatter.string(fromBytes: child.sizeInBytes))
+                .font(.system(size: 11))
+                .foregroundStyle(Color(hex: "#444444"))
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-        .contentShape(Rectangle())
-        .onTapGesture { onToggle(!item.isSelected) }
+        .padding(.vertical, 6)
     }
 }
 
